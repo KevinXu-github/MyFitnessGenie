@@ -9,9 +9,9 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import axios from 'axios';
 import { StravaTokenManager } from './token-manager.js';
-import { PersonalizedCoachingTools } from './tools/personalized-coaching-tools.js';
+import { TrueRAGCoachingTools } from './tools/rag-coaching-tools.js';
 
-// MyFitnessGenie MCP Server
+// MyFitnessGenie MCP Server - Complete RAG System
 class MyFitnessGenieServer {
   private server: Server;
   private tokenManager: StravaTokenManager;
@@ -20,7 +20,7 @@ class MyFitnessGenieServer {
     this.server = new Server(
       {
         name: "MyFitnessGenie",
-        version: "1.0.0",
+        version: "3.0.0", // Full RAG with dynamic ingestion!
       },
       {
         capabilities: {
@@ -34,14 +34,14 @@ class MyFitnessGenieServer {
   }
 
   private setupHandlers() {
-    // List available tools
+    // List all available tools
     this.server.setRequestHandler(ListToolsRequestSchema, async () => {
       return {
         tools: [
           // Existing Strava tools
           {
             name: "get_recent_activities",
-            description: "Get your recent Strava activities with details like distance, duration, heart rate",
+            description: "Get your recent Strava activities with details",
             inputSchema: {
               type: "object",
               properties: {
@@ -89,90 +89,129 @@ class MyFitnessGenieServer {
               required: ["activity_id"]
             }
           },
-          // New personalized coaching tools
+          
+          // Core RAG coaching tools
           {
             name: "setup_user_profile",
-            description: "Set up your personalized fitness profile with goals and calculate daily targets",
+            description: "Set up your personalized fitness profile with RAG-powered coaching",
             inputSchema: {
               type: "object",
               properties: {
-                age: {
-                  type: "number",
-                  description: "Your age in years"
+                age: { type: "number", description: "Your age in years" },
+                gender: { type: "string", enum: ["male", "female"], description: "Your gender" },
+                weight: { type: "number", description: "Your current weight in pounds" },
+                height: { type: "number", description: "Your height in inches" },
+                goal: { 
+                  type: "string", 
+                  enum: ["lose_weight", "gain_muscle", "get_fit"], 
+                  description: "Your primary fitness goal" 
                 },
-                gender: {
-                  type: "string",
-                  enum: ["male", "female"],
-                  description: "Your gender"
+                activityLevel: { 
+                  type: "string", 
+                  enum: ["sedentary", "lightly_active", "moderately_active", "very_active"], 
+                  description: "Your typical activity level" 
                 },
-                weight: {
-                  type: "number",
-                  description: "Your current weight in pounds"
-                },
-                height: {
-                  type: "number",
-                  description: "Your height in inches"
-                },
-                goal: {
-                  type: "string",
-                  enum: ["lose_weight", "gain_muscle", "get_fit"],
-                  description: "Your primary fitness goal"
-                },
-                activityLevel: {
-                  type: "string",
-                  enum: ["sedentary", "lightly_active", "moderately_active", "very_active"],
-                  description: "Your typical activity level"
-                },
-                targetWeight: {
-                  type: "number",
-                  description: "Your target weight in pounds (optional, for weight loss goals)"
-                }
+                targetWeight: { type: "number", description: "Your target weight in pounds (optional)" }
               },
               required: ["age", "gender", "weight", "height", "goal", "activityLevel"]
             }
           },
           {
             name: "log_progress",
-            description: "Log your daily progress including weight, workouts, and calories",
+            description: "Log your daily progress for enhanced RAG analysis",
             inputSchema: {
               type: "object",
               properties: {
-                weight: {
-                  type: "number",
-                  description: "Your weight today in pounds"
-                },
-                workoutsToday: {
-                  type: "number",
-                  description: "Number of workouts completed today"
-                },
-                calories: {
-                  type: "number",
-                  description: "Calories consumed today"
-                },
-                notes: {
-                  type: "string",
-                  description: "Any notes about how you're feeling or observations"
-                }
+                weight: { type: "number", description: "Your weight today in pounds" },
+                workoutsToday: { type: "number", description: "Number of workouts completed today" },
+                calories: { type: "number", description: "Calories consumed today" },
+                notes: { type: "string", description: "Any notes about how you're feeling" }
               }
             }
           },
           {
             name: "get_coaching_advice",
-            description: "Get personalized coaching advice based on your recent progress and goals",
+            description: "Get RAG-powered personalized coaching advice using semantic search",
             inputSchema: {
               type: "object",
               properties: {
-                days: {
-                  type: "number",
-                  description: "Number of days to analyze for coaching advice (default: 7)",
-                  default: 7
+                days: { 
+                  type: "number", 
+                  description: "Number of days to analyze (default: 7)", 
+                  default: 7 
                 }
               }
             }
           },
+          
+          // Dynamic knowledge ingestion tools
           {
-            name: "get_daily_advice",
-            description: "Get daily motivation and advice based on your profile and recent activity",
+            name: "add_website_knowledge",
+            description: "Add knowledge from any website to enhance coaching advice",
+            inputSchema: {
+              type: "object",
+              properties: {
+                url: { 
+                  type: "string", 
+                  description: "URL of the website to add (e.g., fitness articles, research sites)" 
+                },
+                category: { 
+                  type: "string", 
+                  description: "Category for the content (e.g., 'nutrition', 'exercise', 'supplements')" 
+                },
+                description: { 
+                  type: "string", 
+                  description: "Optional description of what this website contains" 
+                }
+              },
+              required: ["url"]
+            }
+          },
+          {
+            name: "add_file_knowledge",
+            description: "Add knowledge from uploaded files (PDF, TXT, DOC) to personalize coaching",
+            inputSchema: {
+              type: "object",
+              properties: {
+                filePath: { 
+                  type: "string", 
+                  description: "Path to the file to add (PDF, TXT, MD, DOCX supported)" 
+                },
+                category: { 
+                  type: "string", 
+                  description: "Category for the content (e.g., 'research', 'plans', 'nutrition')" 
+                },
+                description: { 
+                  type: "string", 
+                  description: "Optional description of the file contents" 
+                }
+              },
+              required: ["filePath"]
+            }
+          },
+          
+          // Enhanced search tools
+          {
+            name: "search_knowledge",
+            description: "Search across ALL knowledge sources (built-in + added) with semantic similarity",
+            inputSchema: {
+              type: "object",
+              properties: {
+                topic: { 
+                  type: "string", 
+                  description: "Topic to search for across all knowledge sources" 
+                },
+                context: { 
+                  type: "string", 
+                  description: "Additional context to refine the search" 
+                }
+              },
+              required: ["topic"]
+            }
+          },
+          {
+            name: "get_rag_stats",
+            description: "Get complete analytics about the RAG system and knowledge base",
             inputSchema: {
               type: "object",
               properties: {}
@@ -182,7 +221,7 @@ class MyFitnessGenieServer {
       };
     });
 
-    // Handle tool calls
+    // Handle all tool calls
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
 
@@ -191,31 +230,35 @@ class MyFitnessGenieServer {
           // Existing Strava tools
           case "get_recent_activities":
             return await this.getRecentActivities((args as any)?.count || 10);
-          
           case "get_athlete_profile":
             return await this.getAthleteProfile();
-          
           case "analyze_training_load":
             return await this.analyzeTrainingLoad((args as any)?.days || 7);
-          
           case "get_activity_details":
             if (!(args as any)?.activity_id) {
               throw new Error("activity_id is required");
             }
             return await this.getActivityDetails((args as any).activity_id);
           
-          // New personalized coaching tools
+          // Core RAG coaching tools
           case "setup_user_profile":
-            return await PersonalizedCoachingTools.setupUserProfile(args as any);
-          
+            return await TrueRAGCoachingTools.setupUserProfile(args as any);
           case "log_progress":
-            return await PersonalizedCoachingTools.logProgress(args as any);
-          
+            return await TrueRAGCoachingTools.logProgress(args as any);
           case "get_coaching_advice":
-            return await PersonalizedCoachingTools.getCoachingAdvice(args as any);
+            return await TrueRAGCoachingTools.getCoachingAdvice(args as any);
           
-          case "get_daily_advice":
-            return await PersonalizedCoachingTools.getDailyAdvice();
+          // Dynamic knowledge tools
+          case "add_website_knowledge":
+            return await TrueRAGCoachingTools.addWebsiteKnowledge(args as any);
+          case "add_file_knowledge":
+            return await TrueRAGCoachingTools.addFileKnowledge(args as any);
+          
+          // Enhanced search tools
+          case "search_knowledge":
+            return await TrueRAGCoachingTools.searchKnowledge(args as any);
+          case "get_rag_stats":
+            return await TrueRAGCoachingTools.getRAGStats();
           
           default:
             throw new Error(`Unknown tool: ${name}`);
@@ -233,7 +276,7 @@ class MyFitnessGenieServer {
     });
   }
 
-  // Existing Strava methods (keeping your original code)
+  // Existing Strava methods (unchanged)
   private async getRecentActivities(count: number) {
     const accessToken = await this.tokenManager.getValidAccessToken();
     const response = await axios.get('https://www.strava.com/api/v3/athlete/activities', {
@@ -399,7 +442,7 @@ ${Object.entries(activityTypes).map(([type, count]) => `- ${type}: ${count} acti
   async run() {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
-    console.error("🧞‍♂️ MyFitnessGenie MCP Server running with personalized coaching!");
+    console.error("🧞‍♂️ MyFitnessGenie v3.0 - Complete RAG System with Dynamic Knowledge Ingestion!");
   }
 }
 
