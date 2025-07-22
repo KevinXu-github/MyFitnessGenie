@@ -9,6 +9,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import axios from 'axios';
 import { StravaTokenManager } from './token-manager.js';
+import { PersonalizedCoachingTools } from './tools/personalized-coaching-tools.js';
 
 // MyFitnessGenie MCP Server
 class MyFitnessGenieServer {
@@ -37,6 +38,7 @@ class MyFitnessGenieServer {
     this.server.setRequestHandler(ListToolsRequestSchema, async () => {
       return {
         tools: [
+          // Existing Strava tools
           {
             name: "get_recent_activities",
             description: "Get your recent Strava activities with details like distance, duration, heart rate",
@@ -86,6 +88,95 @@ class MyFitnessGenieServer {
               },
               required: ["activity_id"]
             }
+          },
+          // New personalized coaching tools
+          {
+            name: "setup_user_profile",
+            description: "Set up your personalized fitness profile with goals and calculate daily targets",
+            inputSchema: {
+              type: "object",
+              properties: {
+                age: {
+                  type: "number",
+                  description: "Your age in years"
+                },
+                gender: {
+                  type: "string",
+                  enum: ["male", "female"],
+                  description: "Your gender"
+                },
+                weight: {
+                  type: "number",
+                  description: "Your current weight in pounds"
+                },
+                height: {
+                  type: "number",
+                  description: "Your height in inches"
+                },
+                goal: {
+                  type: "string",
+                  enum: ["lose_weight", "gain_muscle", "get_fit"],
+                  description: "Your primary fitness goal"
+                },
+                activityLevel: {
+                  type: "string",
+                  enum: ["sedentary", "lightly_active", "moderately_active", "very_active"],
+                  description: "Your typical activity level"
+                },
+                targetWeight: {
+                  type: "number",
+                  description: "Your target weight in pounds (optional, for weight loss goals)"
+                }
+              },
+              required: ["age", "gender", "weight", "height", "goal", "activityLevel"]
+            }
+          },
+          {
+            name: "log_progress",
+            description: "Log your daily progress including weight, workouts, and calories",
+            inputSchema: {
+              type: "object",
+              properties: {
+                weight: {
+                  type: "number",
+                  description: "Your weight today in pounds"
+                },
+                workoutsToday: {
+                  type: "number",
+                  description: "Number of workouts completed today"
+                },
+                calories: {
+                  type: "number",
+                  description: "Calories consumed today"
+                },
+                notes: {
+                  type: "string",
+                  description: "Any notes about how you're feeling or observations"
+                }
+              }
+            }
+          },
+          {
+            name: "get_coaching_advice",
+            description: "Get personalized coaching advice based on your recent progress and goals",
+            inputSchema: {
+              type: "object",
+              properties: {
+                days: {
+                  type: "number",
+                  description: "Number of days to analyze for coaching advice (default: 7)",
+                  default: 7
+                }
+              }
+            }
+          },
+          {
+            name: "get_daily_advice",
+            description: "Get daily motivation and advice based on your profile and recent activity",
+            inputSchema: {
+              type: "object",
+              properties: {}
+            }
           }
         ]
       };
@@ -97,6 +188,7 @@ class MyFitnessGenieServer {
 
       try {
         switch (name) {
+          // Existing Strava tools
           case "get_recent_activities":
             return await this.getRecentActivities((args as any)?.count || 10);
           
@@ -111,6 +203,19 @@ class MyFitnessGenieServer {
               throw new Error("activity_id is required");
             }
             return await this.getActivityDetails((args as any).activity_id);
+          
+          // New personalized coaching tools
+          case "setup_user_profile":
+            return await PersonalizedCoachingTools.setupUserProfile(args as any);
+          
+          case "log_progress":
+            return await PersonalizedCoachingTools.logProgress(args as any);
+          
+          case "get_coaching_advice":
+            return await PersonalizedCoachingTools.getCoachingAdvice(args as any);
+          
+          case "get_daily_advice":
+            return await PersonalizedCoachingTools.getDailyAdvice();
           
           default:
             throw new Error(`Unknown tool: ${name}`);
@@ -128,11 +233,12 @@ class MyFitnessGenieServer {
     });
   }
 
+  // Existing Strava methods (keeping your original code)
   private async getRecentActivities(count: number) {
     const accessToken = await this.tokenManager.getValidAccessToken();
     const response = await axios.get('https://www.strava.com/api/v3/athlete/activities', {
       headers: { 'Authorization': `Bearer ${accessToken}` },
-      params: { per_page: Math.min(count, 30) } // Strava max is 30
+      params: { per_page: Math.min(count, 30) }
     });
 
     const activities = response.data;
@@ -211,7 +317,6 @@ Profile: ${athlete.profile}`
       };
     }
 
-    // Calculate training metrics
     const totalDistance = activities.reduce((sum: number, a: any) => sum + (a.distance || 0), 0) / 1000;
     const totalTime = activities.reduce((sum: number, a: any) => sum + (a.moving_time || 0), 0) / 60;
     const avgHeartRate = activities
@@ -294,7 +399,7 @@ ${Object.entries(activityTypes).map(([type, count]) => `- ${type}: ${count} acti
   async run() {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
-    console.error("🧞‍♂️ MyFitnessGenie MCP Server running");
+    console.error("🧞‍♂️ MyFitnessGenie MCP Server running with personalized coaching!");
   }
 }
 
