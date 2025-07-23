@@ -107,7 +107,3 @@ Once connected, you can ask Claude questions like:
 **Token Issues:** Re-run the authorization steps
 **Claude Desktop Issues:** Check your config file path and restart Claude
 **Missing Data:** Make sure your Strava privacy settings allow data access
-
----
-
-**Ready to unlock your fitness potential? 🏃‍♂️💪**
